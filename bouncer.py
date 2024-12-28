@@ -10,23 +10,18 @@ from enum import Enum
 import time
 from pydub import AudioSegment
 from datetime import datetime
-from dotenv import load_dotenv
 import tkinter as tk
 from tkinter import filedialog
-
-
-load_dotenv()
 
 # Declare Variable Constants
 CONFIGFILE_NAME = "config.ini"
 SCRIPT_DIR = os.path.dirname(os.path.realpath(sys.argv[0]))
 SOURCE_DIR = os.path.dirname(SCRIPT_DIR)
-SHOWCASE_DEFAULT_DIR = os.getenv('SHOWCASE_DEFAULT_DIR')
-CONSOLIDATE_PATH = os.getenv('CONSOLIDATE_PATH')
-RECORDINGS_PATH = os.getenv('RECORDINGS_PATH')
+CONSOLIDATE_PATH = "Samples/Processed/Consolidate"
+RECORDINGS_PATH = "Samples/Recorded"
 
-DEFAULT_useSourceDirName = os.getenv('USE_SOURCE_DIR_NAME')
-DEFAULT_sampleRate = os.getenv('DEFAULT_SAMPLE_RATE')
+DEFAULT_useSourceDirName = True
+DEFAULT_sampleRate = 44100
 
 DEFAULT_CONFIG_MODEL = {
     'Metadata': {
@@ -87,6 +82,7 @@ def select_directory(directoryName: str = "ALP"):
         return selected_dir
     else:
         print("No directory selected. Please Rerun the script to try again")
+        EXIT = input("Press Enter to exit script")
         raise SystemExit(1)
 
 # Extract from source directory name key information
@@ -278,7 +274,7 @@ def get_latest_stems_print(directory, stems_print: str = "MASTER PRINT",
 
     if not files:
         con_record_print_string = "consolidate" if consolidate_sel else "recorded"
-        print(f"No files found starting with '{stems_print}' in {con_record_print_string} folder of Ableton Live Project Directory.")
+        print(f"No files found starting with '{stems_print}' in {con_record_print_string} folder of Ableton Live Project Directory.\n")
         return None
 
     # Full file paths
@@ -313,6 +309,11 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
 
     if 'Metadata' not in Config:
         raise KeyError(f"No 'Metadata' section found in {CONFIGFILE_NAME}.")
+
+    if master_file is None:
+        print("\nCould not copy Master Track to Showcase Directory. Stopping Bouncer process \n")
+        EXIT = input("Press Enter to exit script")
+        raise(SystemExit(1))
 
     # Construct the new filename
     version = Config['Metadata']['Version']
@@ -357,6 +358,7 @@ def create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
         f"Date of Version: {Config['Metadata']['Current Date of Version']}\n"
         f"Artist: {Config['Song Details']['Artist']}\n"
         f"Song Name: {Config['Song Details']['Song Name']}\n"
+        f"Genre Abbreviation: {Config['Song Details']['Genre Abbreviation']}\n"
         f"BPM: {Config['Song Details']['BPM']}\n"
         f"Song Duration in Seconds: {Config['Song Details']['Duration']}\n"
         f"Sample Rate in Hertz: {Config['Metadata']['Sample Rate']}\n"
@@ -421,7 +423,7 @@ def generate_POST(source_dir, directory, release_note_filepath,
                                               format="mp3",
                                               bitrate="192k")
 
-                print(f"Exported {new_filename} into STEMS folder")
+                print(f"Exported {new_filename} into STEMS folder\n")
 
     # perform the collect stems function
     collect_stems(parent_dir=post_dir, directory=directory, StemType=stem_types)
@@ -624,4 +626,4 @@ def main(source_dir: str = SOURCE_DIR):
 
 if __name__ == "__main__":
     main()
-    time.sleep(10)
+    EXIT = input("Press Enter to exit script")

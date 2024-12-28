@@ -1,3 +1,2 @@
 pydub
-python-dotenv
-audioop-lts
+pyinstaller
