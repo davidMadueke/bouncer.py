@@ -69,4 +69,4 @@ jobs:
         path: ./dist/
         merge-multiple: true
     - name: Display structure of downloaded files
-      run: ls -R path/to/artifacts
+      run: ls -R ./dist/
