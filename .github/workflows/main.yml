@@ -63,3 +63,10 @@ jobs:
 
     - name: List files in dist folder
       run: ls -R ./dist/
+
+    - uses: actions/download-artifact@v4
+      with:
+        path: path/to/artifacts
+        merge-multiple: true
+    - name: Display structure of downloaded files
+      run: ls -R path/to/artifacts
