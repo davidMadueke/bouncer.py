@@ -319,7 +319,7 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
     version = Config['Metadata']['Version']
     time_signature = (f"{Config['Song Details']['Time Signature']}"
            if non_standard_time_signature_flag else "")
-    new_filename = f'{song_id} v{version} [{artist} - {song_name}] {bpm}BPM {time_signature} {key}.mp3'
+    new_filename = f'{song_id} v{version} [{artist} - {song_name}] {bpm} {time_signature} {key}.mp3'
     print(f"Adding latest master to showcase directory: {new_filename}")
 
     master_track = AudioSegment.from_file(master_file, format="wav")
