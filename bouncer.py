@@ -338,18 +338,12 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
     if not os.path.exists(showcase_dir):
         os.makedirs(showcase_dir)
     # Remove any previous version of the audio file in the destination directory if found depending on whether the saveMasterEditions flag is selected.
-    for file_name in os.listdir(showcase_dir):
-        if song_id in file_name and artist in file_name and song_name in file_name:
-            prev_version_path = os.path.join(showcase_dir, file_name)
-            os.remove(prev_version_path)
-            print(f"Removed previous version: {os.path.basename(prev_version_path)}")
-
-    ini_filepath = os.path.join(source_dir, CONFIGFILE_NAME)
-    Config = configparser.ConfigParser()
-    Config.read_file(open(ini_filepath))
-
-    if 'Metadata' not in Config:
-        raise KeyError(f"No 'Metadata' section found in {CONFIGFILE_NAME}.")
+    if not save_master_editions_flag:
+        for file_name in os.listdir(showcase_dir):
+            if song_id in file_name or ( artist in file_name and song_name in file_name):
+                prev_version_path = os.path.join(showcase_dir, file_name)
+                os.remove(prev_version_path)
+                print(f"Removed previous version: {os.path.basename(prev_version_path)}")
 
     if master_file is None:
         print("\nCould not copy Master Track to Showcase Directory. Stopping Bouncer process \n")
@@ -521,7 +515,6 @@ def create_default_config(config_path, source_dir_path):
 def add_missing_keys(config, defaults, config_path):
     """Add missing keys to the config file based on the defaults."""
     missing_values = False
-    print("Checking that all fields are in config.ini")
     for section, keys in defaults.items():
         if section not in config:
             config.add_section(section)
@@ -583,18 +576,28 @@ def main(source_dir: str = SOURCE_DIR):
     ini_filepath = os.path.join(source_dir, CONFIGFILE_NAME)
     config.read_file(open(ini_filepath))
 
-    # Run the final checks before proceeding with the main algorithm
-    if not check_config(ini_filepath):
-        return  # Exit if config is incomplete
+    # Set the Source Directory global variable to be the directory set in the config.ini
+    if os.path.isdir(config["Directories"]["sourceDir"]):
+        source_dir = config["Directories"]["sourceDir"]
+    else:
+        print("The path entered into the sourcedir field in the config.ini is not a valid path type, please enter a correct one if you wish to set the source directory")
+        print("Make sure that there are no quotation marks around the directory location, e.g. \"path\\to\\sourceDir\" ")
 
-    if config["Options"].getboolean("useSourceDirName"):
-        parse_sourceDirName_flag = parse_sourceDirName(source_dir_path)
-        increment_version(source_dir_path)
-        if not parse_sourceDirName_flag:
-            createSongID(source_dir_path, genre_abbreviation=' ')
-        print(
-            f"config.ini file has been edited at {config_path}.\n Please fill out the rest of the file and rerun the script.")
+    # Run the final checks before proceeding with the main algorithm
+
+    print("Checking that all fields are in config.ini")
+    if not check_config(ini_filepath):
         return
+
+    if config["Options"].getboolean("useSourceDirNames"):
+        if add_missing_keys(config, defaults=DEFAULT_CONFIG_MODEL, config_path=ini_filepath):
+            parse_sourceDirName_flag = parse_sourceDirName(source_dir)
+            increment_version(source_dir)
+            if not parse_sourceDirName_flag:
+                createSongID(source_dir, genre_abbreviation=' ')
+            print(
+                f"config.ini file has been edited at {config_path}.\n Please fill out the rest of the file and rerun the script.")
+            return
 
     if config["Options"].getboolean("abletonAsDAW"):
         # If it is then check if the ALP_Dir does not exist or it is not valid
