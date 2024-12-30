@@ -112,6 +112,6 @@ jobs:
         draft: false
         prerelease: false
         artifacts: |
-          windows-executables.zip
-          linux-executables.zip
-          macos-executables.zip
+          ./dist/windows-executables.zip
+          ./dist/linux-executables.zip
+          ./dist/macos-executables.zip
