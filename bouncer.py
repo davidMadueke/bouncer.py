@@ -43,7 +43,8 @@ DEFAULT_CONFIG_MODEL = {
         'useSourceDirNames': 'false',
         'saveMasterEditions': 'false',
         'abletonAsDAW': 'true',
-        'abletonConsolidateFlag': 'true'
+        'abletonConsolidateFlag': 'true',
+        'customComment': 'true'
     },
     'Directories': {
         'showcaseDir': '',
@@ -85,6 +86,40 @@ def select_directory(directoryName: str = "ALP"):
         EXIT = input("Press Enter to exit script")
         raise SystemExit(1)
 
+# TKinter UI for the user to add their custom comment for the current release to
+def custom_comments_ui():
+    """
+    Creates the tkinter UI for inputting comments.
+    Returns the entered comments after the UI is closed.
+    """
+    def on_save():
+        """Handle the save button click."""
+        nonlocal comments
+        comments = text_widget.get("1.0", tk.END).strip()  # Get all text and strip trailing whitespace/newlines
+        root.destroy()  # Close the UI
+
+    comments = None  # Variable to store comments
+
+    # Create the main tkinter window
+    root = tk.Tk()
+    root.title("Song Comments Input")
+
+    # Create a label
+    label = tk.Label(root, text="Enter your comments below:", font=("Arial", 14))
+    label.pack(pady=10)
+
+    # Create a Text widget for multiline input
+    text_widget = tk.Text(root, width=60, height=15, font=("Arial", 12))
+    text_widget.pack(pady=10)
+
+    # Create a button to submit the input
+    submit_button = tk.Button(root, text="Save Comments", command=on_save, font=("Arial", 12))
+    submit_button.pack(pady=10)
+
+    # Run the tkinter event loop
+    root.mainloop()
+
+    return comments
 # Extract from source directory name key information
 def parse_sourceDirName(source_dir_path):
     """
@@ -332,7 +367,8 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
 
 # Helper function to create a new entry in the release notes directory
 def create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
-                        non_standard_time_signature: bool =False):
+                        non_standard_time_signature: bool = False,
+                        custom_comments_flag: bool = True):
     # Initialising configParser file and creating release notes directory if not already created
 
     ini_filepath = os.path.join(source_dir, config_filename)
@@ -352,6 +388,13 @@ def create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
     release_note_filename = f"Release Notes v{Config['Metadata']['Version']} {Config['Metadata']['Current Date of Version']}.txt"
 
     release_note_filepath = os.path.join(release_notes_dir, release_note_filename)
+    comments = "None" # Initialise the Release Comments Variable for file_content
+    if custom_comments_flag:
+        print("Would you like to add a comment to this note? Please enter it in the Release Comments Pop up Ui. Press the Save Comments button once you have finished")
+        comments = custom_comments_ui()
+        if comments:
+            print(f"\nComments for this release note:\n {comments}\n")
+
     # Create the content for the file
     file_content = (
         f"Song Details:\n"
@@ -365,7 +408,7 @@ def create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
         f"Key Signature: {Config['Song Details']['Key']}\n"
         + (f"Time Signature: {Config['Song Details']['Time Signature']}\n"
            if non_standard_time_signature else "")
-        + f"Comments: \n"
+        + f"Comments: {comments}\n"
     )
 
     # Write the content to the text file
@@ -578,24 +621,24 @@ def main(source_dir: str = SOURCE_DIR):
     # The abletonConsolidateFlag is used to choose whether to get the stems from the recorded folder or the consolidate folder
     ableton_consolidate_sel_flag: bool = config["Options"].getboolean("abletonConsolidateFlag")
 
+    # The custom comment flag is used to choose whether to leave the comments section in the release note blank or fill it out using the terminal UI
+    custom_comment_flag: bool = config["Options"].getboolean("customComment")
+
     song_id = config["Metadata"]["songID"]
-    ( artist, song_name, time_signature, bpm, key,
-      duration, genre_abbreviation) = config["Song Details"].values()
-
-    # Make sure Artists and Song Name and Time Signature is formatted correctly to account for use of Commas
-    config.set("Song Details", "Artist", re.sub(r'[,\\/*?:"<>|]', '_', artist))
-    config.set("Song Details", "Song Name", re.sub(r'[,\\/*?:"<>|]', '_', song_name))
-    config.set("Song Details", "Time Signature", re.sub(r'[,\\/*?:"<>|]', '_', time_signature))
-
-    with open(ini_filepath, 'w') as configfile:
-        #print("Changes have been made to config.ini")
-        config.write(configfile)
+    current_date_of_version = config["Metadata"]["Current Date of Version"]
+    artist = config["Song Details"]["artist"]
+    song_name = config["Song Details"]["song name"]
+    bpm = config["Song Details"]["bpm"]
+    key = config["Song Details"]["key"]
+    time_signature = config["Song Details"]["time signature"]
+    duration = config["Song Details"]["duration"]
+    genre_abbreviation = config["Song Details"]["genre abbreviation"]
 
     # A simple Helper function to make sure that
     def timeSignatureNot4_4(time_signature):
-        return True if not (time_signature == "4_4") else False
+        return True if not (time_signature == "4/4") else False
 
-    phasesCount: int = 1 # For the CLI to count each phase
+    phasesCount: int = 1 # For the CLI to count each phase of the bouncer process
 
     print(f"\nPhase {phasesCount}: Copy Latest Master Track to Showcase Directory")
     phasesCount += 1
@@ -605,13 +648,15 @@ def main(source_dir: str = SOURCE_DIR):
                                           consolidate_sel=ableton_consolidate_sel_flag,
                                           alp_dir_flag=ableton_as_daw_flag)
     copy_Master_to_ShowcaseDir(master_track, showcase_dir, source_dir,
-                               song_id, artist, song_name, bpm, key,
-                               non_standard_time_signature_flag=timeSignatureNot4_4(time_signature))
+                               song_id, version, artist, song_name, bpm, key, time_signature,
+                               non_standard_time_signature_flag=timeSignatureNot4_4(time_signature),
+                               save_master_editions_flag=save_master_editions_flag)
 
-    print(f"\nPhase {phasesCount}: Create a release note for version {version} and save it in the release notes directory")
+    print(f"\nPhase {phasesCount}: Creating a release note for v{version} {current_date_of_version}")
     phasesCount += 1
     release_note_filepath = create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
-                                                non_standard_time_signature=timeSignatureNot4_4(time_signature))
+                                                non_standard_time_signature=timeSignatureNot4_4(time_signature),
+                                                custom_comments_flag=custom_comment_flag)
 
     print(f"\nPhase {phasesCount}: Create a new post entry in the POST directory and copy over the stems and release note into this entry")
     phasesCount += 1
