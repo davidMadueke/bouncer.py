@@ -69,13 +69,13 @@ jobs:
       run: ls -R 
     
     - name: Compress Windows Executables
-      run: zip -r bouncer-windows.zip bouncer-windows/
+      run: zip -r bouncer-${{ github.ref_name }}-windows.zip bouncer-windows/
 
     - name: Compress Linux Executables
-      run: zip -r bouncer-linux.zip bouncer-linux/
+      run: zip -r bouncer-${{ github.ref_name }}-linux.zip bouncer-linux/
 
     - name: Compress macOS Executables
-      run: zip -r bouncer-macos.zip bouncer-macos/
+      run: zip -r bouncer-${{ github.ref_name }}-macos.zip bouncer-macos/
 
     - name: List files in runtime folder
       run: ls -R 
@@ -91,4 +91,4 @@ jobs:
         prerelease: false
         generateReleaseNotes: true
         allowUpdates: true
-        artifacts: "bouncer-macos.zip, bouncer-linux.zip, bouncer-windows.zip "
+        artifacts: "bouncer-${{ github.ref_name }}-macos.zip, bouncer-${{ github.ref_name }}-linux.zip, bouncer-${{ github.ref_name }}-windows.zip "
