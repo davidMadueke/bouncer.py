@@ -2,8 +2,8 @@ name: Build Executables
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - v*  # Matches tags starting with 'v'
 
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -28,58 +28,83 @@ jobs:
     - name: Install Python dependencies
       run: |
         pip install -r requirements.txt
-      working-directory: ./
 
     - name: Install PyInstaller
       run: |
         pip install pyinstaller
-      working-directory: ./
 
     - name: Build executable
       run: |
         pyinstaller --onefile ${{ env.MAIN_PY_FILE }}
-      working-directory: ./
 
-    - name: Create Artifact (Windows)
+    - name: Upload Artifact (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-executables
         path: dist/
 
-    - name: Create Artifact (Linux)
+    - name: Upload Artifact (Linux)
       if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: linux-executables
         path: dist/
 
-    - name: Create Artifact (macOS)
+    - name: Upload Artifact (macOS)
       if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macos-executables
         path: dist/
 
-    - name: List files in dist folder
-      run: ls -R ./dist/
-
-  release:
+  prep_release:
     needs: build
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
+    - name: Download Windows Artifacts
+      uses: actions/download-artifact@v4
       with:
-        path: ./dist
+        name: windows-executables
+        path: ./dist/windows-executables
+
+    - name: Download Linux Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: linux-executables
+        path: ./dist/linux-executables
+
+    - name: Download macOS Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: macos-executables
+        path: ./dist/macos-executables
+
+    - name: Compress Windows Executables
+      run: zip -r windows-executables.zip ./dist/windows-executables/
+
+    - name: Compress Linux Executables
+      run: zip -r linux-executables.zip ./dist/linux-executables/
+
+    - name: Compress macOS Executables
+      run: zip -r macos-executables.zip ./dist/macos-executables/
+
+  release:
+    needs: prep_release
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Create Release and Upload Artifacts
       uses: ncipollo/release-action@v1
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         tag: ${{ github.ref_name }}
         name: Release ${{ github.ref_name }}
         body: |
@@ -87,6 +112,6 @@ jobs:
         draft: false
         prerelease: false
         artifacts: |
-          ./dist/windows-executables
-          ./dist/linux-executables
-          ./dist/macos-executables
+          windows-executables.zip
+          linux-executables.zip
+          macos-executables.zip
