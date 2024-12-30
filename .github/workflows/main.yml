@@ -35,7 +35,7 @@ jobs:
 
     - name: Build executable
       run: |
-        pyinstaller --onefile ${{ env.MAIN_PY_FILE }}
+        pyinstaller --onefile ${{ env.MAIN_PY_FILE }} --name bouncer-${{ github.ref_name }}
 
     - name: Upload Artifact (Windows)
       if: matrix.os == 'windows-latest'
