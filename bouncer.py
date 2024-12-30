@@ -130,11 +130,11 @@ def parse_sourceDirName(source_dir_path):
     name = os.path.basename(source_dir_path)
 
     # Original pattern r'(\w+)\s+\[(.*?)\s*-\s*(.*?)\]\s+(\d+)BPM\s+(\w+)'
-    pattern = r'(\d{8})_(\d+)_([A-Z]+)\s+\[([A-Z\s]+)\s*-\s*([A-Z\s]+)\]\s+(\d+)\s*BPM\s+([a-zA-Z]+)([A-Z\s]+)'
+    pattern = r'(\d{8})_(\d+)_([\w]+)\s+\[([\w\s]+)\s*-\s*([\w\s]+)\]\s+(\d+)\s*BPM\s+([a-zA-Z]+)([\w\s]+)'
     match = re.match(pattern, name)
 
     if not match:
-        print(f"Source Directory '{name}' does not match the expected pattern.\nSongID [Song Artist - Song Name] Song BPM Song Key")
+        print(f"Source Directory '{name}' does not match the expected pattern: SongID [Song Artist - Song Name] Song BPM Song Key")
         print("Generating default config.ini file")
         # prompt user to select showcaseDir
         new_showcase_dir = select_directory('Showcase')
@@ -181,9 +181,9 @@ def parse_sourceDirName(source_dir_path):
 
     Config.add_section("Song Details")
     # Make sure Artists and Song Name is formatted correctly to account for use of Commas
-    Config.set("Song Details", "Artist", re.sub(r'[,\\/*?:"<>|]', '_', artist))
-    Config.set("Song Details", "Song Name", re.sub(r'[,\\/*?:"<>|]', '_', song_name))
-    Config.set("Song Details", "Time Signature", re.sub(r'[,\\/*?:"<>|]', '_', "4/4"))
+    Config.set("Song Details", "Artist", artist)
+    Config.set("Song Details", "Song Name", song_name)
+    Config.set("Song Details", "Time Signature", "4/4")
     Config.set("Song Details", "BPM", bpm)
     Config.set("Song Details", "Key", key)
     Config.set("Song Details", "Duration", "N/A")
@@ -288,6 +288,11 @@ def increment_version(source_dir):
 
     print(f"Version updated to Version {new_version} in {CONFIGFILE_NAME}")
 
+# Helper function to format any incoming data from the config files into strings that can be used in filenames
+def format_for_filename(data: str, artistsFlag: bool = False) -> str:
+    return (re.sub(r'[,\\/*?:"<>|]', '-', data) if not artistsFlag
+            else data.replace('feat:', 'x').replace(',', ' x').strip())
+
 # Helper function to get the latest print of the particular stems
 def get_latest_stems_print(directory, stems_print: str = "MASTER PRINT",
                            consolidate_sel: bool = True, alp_dir_flag: bool = False):
@@ -326,8 +331,9 @@ def get_latest_stems_print(directory, stems_print: str = "MASTER PRINT",
 # Check the version number of the project and append that to the name of the copied master
 # If a previous version of the master is found in the Bounced Directories, replace it with this version
 def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
-                               song_id, artist, song_name, bpm, key,
-                               non_standard_time_signature_flag: bool):
+                               song_id, version, artist, song_name, bpm, key, time_signature,
+                               non_standard_time_signature_flag: bool,
+                               save_master_editions_flag: bool):
     # Ensure the destination directory exists
     if not os.path.exists(showcase_dir):
         os.makedirs(showcase_dir)
@@ -351,10 +357,9 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
         raise(SystemExit(1))
 
     # Construct the new filename
-    version = Config['Metadata']['Version']
-    time_signature = (f"{Config['Song Details']['Time Signature']}"
-           if non_standard_time_signature_flag else "")
-    new_filename = f'{song_id} v{version} [{artist} - {song_name}] {bpm} {time_signature} {key}.mp3'
+    time_signature = (f" {format_for_filename(time_signature)} "
+           if non_standard_time_signature_flag else " ")
+    new_filename = f'{song_id} v{version} [[{format_for_filename(artist, artistsFlag=True)}] - [{format_for_filename(song_name)}]] {bpm}{time_signature}{key}.mp3'
     print(f"Adding latest master to showcase directory: {new_filename}")
 
     master_track = AudioSegment.from_file(master_file, format="wav")
@@ -362,7 +367,8 @@ def copy_Master_to_ShowcaseDir(master_file, showcase_dir, source_dir,
     file_handle = master_track.export(os.path.join(showcase_dir, new_filename),
                                format="mp3",
                                bitrate="192k",
-                               tags={"artist": song_name})
+                               tags={"artist": artist,
+                                     "title":song_name})
     print(f"Added latest version: {os.path.basename(os.path.join(showcase_dir, new_filename))}")
 
 # Helper function to create a new entry in the release notes directory
@@ -376,10 +382,14 @@ def create_release_note(source_dir, config_filename=CONFIGFILE_NAME,
     Config.read_file(open(ini_filepath))
 
     if 'Song Details' not in Config:
-        raise KeyError(f"No 'Song Details' section found in {config_filename}.")
-    if 'Metadata' not in Config:
-        raise KeyError(f"No 'Metadata' section found in {config_filename}.")
+        print(f"\nNo 'Song Details' section found in {config_filename}. Stopping Bouncer Process \n")
+        EXIT = input("Press Enter to exit script")
+        raise SystemExit(1)
 
+    if 'Metadata' not in Config:
+        print(f"\nNo 'Metadata' section found in {config_filename}. Stopping Bouncer Process \n")
+        EXIT = input("Press Enter to exit script")
+        raise SystemExit(1)
     release_notes_dir = os.path.join(source_dir, "release_notes")
     if not os.path.exists(release_notes_dir):
         os.makedirs(release_notes_dir)
@@ -439,7 +449,7 @@ def generate_POST(source_dir, directory, release_note_filepath,
     # Within the POST dir, there will be sub folders housing each post
     song_name = Config['Song Details']['Song Name']
     song_artist = Config['Song Details']['Artist']
-    post_dir = os.path.join(posts_dir, f"[{song_artist}-{song_name}] v{Config['Metadata']['Version']} {Config['Metadata']['Current Date of Version']}")
+    post_dir = os.path.join(posts_dir, f"[[{format_for_filename(song_artist, artistsFlag=True)}] - [{format_for_filename(song_name)}]] v{Config['Metadata']['Version']} {Config['Metadata']['Current Date of Version']}")
 
     if not os.path.exists(post_dir):
         os.makedirs(post_dir)
