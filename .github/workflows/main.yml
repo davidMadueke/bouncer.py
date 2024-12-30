@@ -90,4 +90,5 @@ jobs:
         draft: false
         prerelease: false
         generateReleaseNotes: true
+        allowUpdates: true
         artifacts: "bouncer-macos.zip, bouncer-linux.zip, bouncer-windows.zip "
