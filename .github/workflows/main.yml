@@ -64,9 +64,22 @@ jobs:
     steps:
     - name: Download All Artifacts
       uses: actions/download-artifact@v4 # We are downloading all of the artifacts to the root of the runtime directory
+    
     - name: List files in runtime folder
       run: ls -R 
-  
+    
+    - name: Compress Windows Executables
+      run: zip -r bouncer-windows.zip bouncer-windows/
+
+    - name: Compress Linux Executables
+      run: zip -r bouncer-linux.zip bouncer-linux/
+
+    - name: Compress macOS Executables
+      run: zip -r bouncer-macos.zip bouncer-macos/
+
+    - name: List files in runtime folder
+      run: ls -R 
+      
     - name: Create Release and Upload Artifacts
       uses: ncipollo/release-action@v1
       with:
